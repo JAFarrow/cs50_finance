@@ -1,13 +1,13 @@
-#Finance with CS50
+# Finance with CS50
 ---
-##Overview
+## Overview
 
 We have been tasked with creating a web application that a user would be able to "buy" and "sell" stocks from.
 Their purchases and sales should affect their portfolio.
 With the use of an API, we will pull realtime stock pricing for stocks searched for by the user.
 
 ---
-##Specification
+## Specification
 
 * Register feature where a user can register for a profile using an HTML form.
 * Qoute feature in order to allow a user to search for a particular stock and retrieve its' real time price.
@@ -16,14 +16,14 @@ With the use of an API, we will pull realtime stock pricing for stocks searched 
 * Flesh out the web page to display all neccesary information and features in a neat and asthetic way.
 
 ---
-##Tech stack
+## Tech stack
 
 * HTML and CSS for site structure and visuals.
 * SQLite database for data storage
 * Flask via Python in order to implement dynamic usability
 
 ---
-##Requirements
+## Requirements
 
 cs50
 Flask
