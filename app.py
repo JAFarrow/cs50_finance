@@ -42,7 +42,25 @@ def index():
 @login_required
 def buy():
     """Buy shares of stock"""
-    return apology("TODO")
+    if request.method == "POST":
+        stock_info = ""
+        symbol = (request.form.get("symbol")).upper()
+        amount = int(request.form.get("amount"))
+        if symbol:
+            stock_info = lookup(symbol)
+            if stock_info and amount:
+                if amount > 0:
+                    if not update_balance(session["user_id"], stock_info["price"], amount):
+                        return apology("insufficient funds", 403)
+                    append_transaction(session["user_id"], symbol, amount, "BUY")
+                    update_holdings(session["user_id"], symbol, amount)
+                    return redirect("/")
+                else:
+                    return apology("shares missing", 403)
+            else:
+                return apology("invalid symbol", 403)
+    else:
+        return render_template("buy.html")
 
 
 @app.route("/history")
@@ -147,3 +165,24 @@ def register():
 def sell():
     """Sell shares of stock"""
     return apology("TODO")
+
+
+def update_balance(user_id, price, amount):
+    balance = db.execute("SELECT cash FROM users WHERE id = ?", user_id)[0]["cash"]
+    if (balance - (price * amount)) > -1:
+        balance -= (price * amount)
+        db.execute("UPDATE users SET cash = ? WHERE id = ?", balance, user_id)
+        return True
+    return False
+
+def update_holdings(user_id, symbol, add_amount):
+    current_holdings = db.execute("SELECT * FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
+    if current_holdings:
+        new_amount = current_holdings[0]["amount"] + add_amount
+        db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?", new_amount, user_id, symbol)
+    else:
+        db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", user_id, symbol, add_amount)
+
+def append_transaction(user_id, symbol, amount, transaction_type):
+        db.execute("INSERT INTO transactions (user_id, symbol, shares, transaction_type)\
+                    VALUES (?, ?, ?, ?)", user_id, symbol, amount, transaction_type)
