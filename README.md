@@ -25,11 +25,11 @@ With the use of an API, we will pull realtime stock pricing for stocks searched 
 ---
 ## Requirements
 
-cs50
-Flask
-Flask-Session
-pytz
-requests
+* cs50
+* Flask
+* Flask-Session
+* pytz
+* requests
 
 **INSTALLABLE VIA PIP**
 
