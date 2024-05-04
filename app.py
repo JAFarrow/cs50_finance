@@ -174,7 +174,17 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
+    if request.method == "POST":
+        symbol = request.form.get("symbol")
+        negative_amount = -int(request.form.get("shares"))
+        if not update_holdings(session["user_id"], symbol, negative_amount):
+            return apology("not enough shares owned", 403)
+        update_balance(session["user_id"], lookup(symbol)["price"], negative_amount)
+        append_transaction(session["user_id"], symbol, abs(negative_amount), "SELL")
+        return redirect("/")
+    else:
+        holdings = db.execute("SELECT symbol FROM holdings WHERE user_id = ?", session["user_id"])
+        return render_template("sell.html", holdings=holdings)
 
 
 def update_balance(user_id, price, amount):
@@ -189,9 +199,15 @@ def update_holdings(user_id, symbol, add_amount):
     current_holdings = db.execute("SELECT * FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
     if current_holdings:
         new_amount = current_holdings[0]["amount"] + add_amount
-        db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?", new_amount, user_id, symbol)
+        if new_amount > 0:
+            db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?", new_amount, user_id, symbol)
+        elif new_amount == 0:
+            db.execute("DELETE FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
+        else:
+            return False
     else:
         db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", user_id, symbol, add_amount)
+    return True
 
 def append_transaction(user_id, symbol, amount, transaction_type):
         db.execute("INSERT INTO transactions (user_id, symbol, shares, transaction_type)\
