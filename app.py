@@ -1,4 +1,5 @@
 import os
+import datetime
 
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session
@@ -45,7 +46,7 @@ def index():
         summed_value += value
     cash = db.execute("SELECT cash FROM users WHERE id = ?", session["user_id"])[0]["cash"]
     total_value = summed_value + cash
-    return render_template("portfolio.html", holdings=holdings, cash=usd(cash), totalValue = usd(total_value))
+    return render_template("portfolio.html", holdings=holdings, cash=usd(cash), totalValue=usd(total_value))
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -55,20 +56,28 @@ def buy():
     if request.method == "POST":
         stock_info = ""
         symbol = (request.form.get("symbol")).upper()
-        amount = int(request.form.get("amount"))
+        amount = request.form.get("shares")
         if symbol:
             stock_info = lookup(symbol)
-            if stock_info and amount:
-                if amount > 0:
+            if stock_info:
+                if amount.isdigit():
+                    amount = int(amount)
                     if not update_balance(session["user_id"], stock_info["price"], amount):
-                        return apology("insufficient funds", 403)
-                    append_transaction(session["user_id"], symbol, amount, "BUY")
+                        flash("Insufficient Funds.")
+                        return render_template("buy.html"), 400
+                    append_transaction(session["user_id"], symbol, amount,
+                                       "BUY", format_current_datetime(), stock_info["price"])
                     update_holdings(session["user_id"], symbol, amount)
                     return redirect("/")
                 else:
-                    return apology("shares missing", 403)
+                    flash("Please Input a Valid Amount of Shares to Buy.")
+                    return render_template("buy.html"), 400
             else:
-                return apology("invalid symbol", 403)
+                flash("Non-Existant Symbol Entered.")
+                return render_template("buy.html"), 400
+        else:
+            flash("Please Enter a Symbol.")
+            return render_template("buy.html"), 400
     else:
         return render_template("buy.html")
 
@@ -77,7 +86,10 @@ def buy():
 @login_required
 def history():
     """Show history of transactions"""
-    return apology("TODO")
+    transactions = db.execute("SELECT * FROM transactions WHERE user_id = ?", session["user_id"])
+    for transaction in transactions:
+        transaction["price"] = usd(transaction["price"])
+    return render_template("history.html", transactions=transactions)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -144,7 +156,8 @@ def quote():
             price = usd(stock_info["price"])
             return render_template("quoted.html", stock=stock, price=price)
         else:
-            return apology("invalid symbol", 403)
+            flash("Invalid or Non-Existant Symbol Entered.")
+            return render_template("quote.html"), 400
     else:
         return render_template("quote.html")
 
@@ -156,13 +169,21 @@ def register():
         username = request.form.get("username")
         password = request.form.get("password")
         if not username:
-            return apology("must provide username", 403)
+            flash("Please input a username.")
+            return render_template("register.html"), 400
         elif not password:
-            return apology("must provide password", 403)
+            flash("Please input a password.")
+            return render_template("register.html"), 400
         elif not password == request.form.get("confirmation"):
-            return apology("passwords must match", 403)
+            flash("Passwords must match.")
+            return render_template("register.html"), 400
         
-        db.execute("INSERT INTO users (username, hash) VALUES(?, ?)", username, generate_password_hash(password))
+        try:
+            db.execute("INSERT INTO users (username, hash) VALUES(?, ?)",
+                       username, generate_password_hash(password))
+        except ValueError:
+            flash("Username already exists. Please try another.")
+            return render_template("register.html"), 400
 
         return redirect("/")
         
@@ -174,17 +195,46 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
+    holdings = db.execute("SELECT symbol FROM holdings WHERE user_id = ?", session["user_id"])
     if request.method == "POST":
         symbol = request.form.get("symbol")
-        negative_amount = -int(request.form.get("shares"))
-        if not update_holdings(session["user_id"], symbol, negative_amount):
-            return apology("not enough shares owned", 403)
-        update_balance(session["user_id"], lookup(symbol)["price"], negative_amount)
-        append_transaction(session["user_id"], symbol, abs(negative_amount), "SELL")
-        return redirect("/")
+        if symbol:
+            amount = request.form.get("shares")
+            if amount:
+                negative_amount = -int(amount)
+                price = lookup(symbol)["price"]
+                if not update_holdings(session["user_id"], symbol, negative_amount):
+                    flash("Insufficient Shares Owned for This Order.")
+                    return render_template("sell.html", holdings=holdings), 400
+                update_balance(session["user_id"], price, negative_amount)
+                append_transaction(session["user_id"], symbol, negative_amount,
+                                   "SELL", format_current_datetime(), price)
+                return redirect("/")
+            else:
+                flash("Please Enter a Valid Amount of Shares to Sell.")
+                return render_template("sell.html", holdings=holdings), 400
+        else:
+            flash("Invalid or Non-Existent Symbol Entered.")
+            return render_template("sell.html", holdings=holdings), 400
     else:
-        holdings = db.execute("SELECT symbol FROM holdings WHERE user_id = ?", session["user_id"])
         return render_template("sell.html", holdings=holdings)
+
+
+@app.route("/fund", methods=["GET", "POST"])
+@login_required
+def fund():
+    if request.method == "POST":
+        amount = request.form.get("amount")
+        if amount.isdigit():
+            amount = int(amount)
+            update_balance(session["user_id"], 1, -amount)
+            flash("Additional Funds Added to your Account.")
+            return redirect("/")
+        else:
+            flash("Please Enter a Valid Amount.")
+            return render_template("fund.html"), 400
+    else:
+        return render_template("fund.html")
 
 
 def update_balance(user_id, price, amount):
@@ -195,20 +245,29 @@ def update_balance(user_id, price, amount):
         return True
     return False
 
+
 def update_holdings(user_id, symbol, add_amount):
-    current_holdings = db.execute("SELECT * FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
+    current_holdings = db.execute(
+        "SELECT * FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
     if current_holdings:
         new_amount = current_holdings[0]["amount"] + add_amount
         if new_amount > 0:
-            db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?", new_amount, user_id, symbol)
+            db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?",
+                       new_amount, user_id, symbol)
         elif new_amount == 0:
             db.execute("DELETE FROM holdings WHERE user_id = ? AND symbol = ?", user_id, symbol)
         else:
             return False
     else:
-        db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", user_id, symbol, add_amount)
+        db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)",
+                   user_id, symbol, add_amount)
     return True
 
-def append_transaction(user_id, symbol, amount, transaction_type):
-        db.execute("INSERT INTO transactions (user_id, symbol, shares, transaction_type)\
-                    VALUES (?, ?, ?, ?)", user_id, symbol, amount, transaction_type)
+
+def append_transaction(user_id, symbol, amount, transaction_type, datetime, price):
+    db.execute("INSERT INTO transactions (user_id, symbol, shares, transaction_type, datetime, price)\
+                VALUES (?, ?, ?, ?, ?, ?)", user_id, symbol, amount, transaction_type, datetime, price)
+    
+        
+def format_current_datetime():
+    return datetime.datetime.now().isoformat(" ", "seconds")
