@@ -16,6 +16,29 @@ With the use of an API, we will pull realtime stock pricing for stocks searched 
 * Flesh out the web page to display all neccesary information and features in a neat and asthetic way.
 
 ---
+## Getting Started
+
+1. Clone this repository
+```shell
+git clone git@github.com:JAFarrow/cs50_finance.git
+```
+2. Navigate to the main directory
+```shell
+cd cs50_finance
+```
+3. Install Requirements
+```shell
+pip install -r requirements.txt
+```
+
+4. Localhost App
+```shell
+flask run
+```
+
+5. A link will be generated in your terminal. Once clicked, the project should open in your browser.
+
+---
 ## Tech stack
 
 * HTML and CSS for site structure and visuals.
@@ -33,7 +56,7 @@ With the use of an API, we will pull realtime stock pricing for stocks searched 
 
 **INSTALLABLE VIA PIP**
 
-```python
+```shell
 pip install -r requirements.txt
 ```
 
