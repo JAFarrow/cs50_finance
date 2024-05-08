@@ -36,7 +36,7 @@ pip install -r requirements.txt
 flask run
 ```
 
-5.A link will be generated in your terminal. Once clicked, the project should open in your browser.
+5. A link will be generated in your terminal. Once clicked, the project should open in your browser.
 
 ---
 ## Tech stack
