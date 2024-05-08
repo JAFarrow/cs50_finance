@@ -20,14 +20,16 @@ With the use of an API, we will pull realtime stock pricing for stocks searched 
 
 1. Clone this repository
 ```shell
-git clone git@github.com:JAFarrow/cs50_finance.git```
+git clone git@github.com:JAFarrow/cs50_finance.git
+```
 2. Navigate to the main directory
 ```shell
 cd cs50_finance
 ```
 3. Install Requirements
 ```shell
-pip install -r requirements.txt```
+pip install -r requirements.txt
+```
 
 4. Localhost App
 ```shell
