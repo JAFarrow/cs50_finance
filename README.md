@@ -33,7 +33,8 @@ pip install -r requirements.txt
 
 4. Localhost App
 ```shell
-flask run```
+flask run
+```
 
 5.A link will be generated in your terminal. Once clicked, the project should open in your browser.
 
